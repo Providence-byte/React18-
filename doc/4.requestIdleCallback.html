@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>requestIdleCallback</title>
+  </head>
+  <body>
+    <script>
+      const sleep = (duration) => {
+        for (let t = Date.now(); Date.now() - t <= duration; ) {}
+      };
+
+      const works = [
+        () => {
+          console.log("第1个任务开始");
+          sleep(5);
+          console.log("第1个任务结束");
+        },
+        () => {
+          console.log("第2个任务开始");
+          sleep(5);
+          console.log("第2个任务结束");
+        },
+        () => {
+          console.log("第3个任务开始");
+          sleep(20);
+          console.log("第3个任务结束");
+        },
+      ];
+      requestIdleCallback(workLoop);
+      function workLoop(deadline) {
+        // 因为一帧是16.6ms，浏览器执行完高优先级任务后，如果还有时间，会执行workLoop
+        console.log("本帧的剩余时间:", deadline.timeRemaining());
+        while (deadline.timeRemaining() > 1 && works.length > 0) {
+          performUnitOfWork();
+        }
+        // 如果还有剩余任务
+        if (works.length > 0) {
+          console.log(`只剩下${deadline.timeRemaining()}ms,等待浏览器下次执行`);
+          requestIdleCallback(workLoop);
+        }
+      }
+      function performUnitOfWork() {
+        let work = works.shift();
+        work();
+      }
+
+      //Q&A:
+      // 每一帧16.6ms，平均会有 5 ms的空闲时间
+      // React为什么不使用 requestIdleCallback？
+      // 1.兼容性问题。Safari不支持，其他浏览器也要较高版本才兼容
+      // 2.执行时间不可控
+      // 3.React自己实现了一个类似的方法，把每帧执行时间定为5ms
+      // 单个任务执行时间过长，会中断任务吗？
+      // 不会，一个任务是最小单位，不能被中断，可以理解为一个任务就是一个fiber单元，不可分割
+      // 这种调度方式称为合作式调度 是用户和浏览器合作完成的
+    </script>
+  </body>
+</html>
